@@ -176,7 +176,7 @@ export const runConfirmedNativeTokenExtraWorker = async (): Promise<void> => {
       txs = txs.filter(tx => ethers.BigNumber.from(tx.value).gt(0));
 
       // Only transactions occuring on or after the order was created
-      txs = txs.filter(tx => new Date(+tx.timestamp * 1000).getTime() >= order.createdAt.getTime());
+      txs = txs.filter(tx => new Date(ns.times(tx.timestamp, "1000")).getTime() >= order.createdAt.getTime());
 
       // Only the first 10 transactions
       txs = txs.slice(0, 10);
