@@ -25,6 +25,7 @@ const accountTxListResultSchema = z.array(
     from: z.string(),
     to: z.string(),
     value: z.string(),
+    timeStamp: z.string()
   })
 );
 
@@ -34,15 +35,15 @@ const accountTxListResultSchema = z.array(
 export const runConfirmedNativeTokenExtraWorker = async (): Promise<void> => {
   const context = await contextLazy;
   const {
-    config,
     db,
     nativeMethod,
     network,
     nodeProvider,
-    config: { etherscanApiKey, evmAccount: account },
+    config,
   } = context;
 
   const { asset, id: depositMethodId } = nativeMethod;
+  const { etherscanApiKey, evmAccount: account } = config
 
   const logger = createLogger('ethereum:deposit:confirmed-native');
   const graphQLClient = memGetInternalGqlc();
@@ -174,6 +175,9 @@ export const runConfirmedNativeTokenExtraWorker = async (): Promise<void> => {
       // Only transactions with a value
       txs = txs.filter(tx => ethers.BigNumber.from(tx.value).gt(0));
 
+      // Only transactions occuring on or after the order was created
+      txs = txs.filter(tx => new Date(ns.times(tx.timestamp, "1000")).getTime() >= order.createdAt.getTime());
+
       // Only the first 10 transactions
       txs = txs.slice(0, 10);
 
@@ -190,26 +194,9 @@ export const runConfirmedNativeTokenExtraWorker = async (): Promise<void> => {
 
         if (!ethersTx.blockNumber) {
           logger.warn('Transaction %s has no block number', etherscanTx.hash);
-
           return;
         }
-
-        const block = await nodeProvider.getBlock(ethersTx.blockNumber);
-
-        const timestamp = new Date(block.timestamp * 1000);
-
-        // Only transactions that happened after the order was created
-        // This should handle deposit address re-assignment
-        if (timestamp.getTime() < order.createdAt.getTime()) {
-          logger.warn(
-            'Ignoring tx %s that happened before order %s was created',
-            etherscanTx.hash,
-            orderId
-          );
-
-          return;
-        }
-
+      
         logger.info('Scanning tx %s', etherscanTx.hash);
 
         await scanTxid(ethersTx);
