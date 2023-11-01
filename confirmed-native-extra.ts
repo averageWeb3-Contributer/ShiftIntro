@@ -35,15 +35,15 @@ const accountTxListResultSchema = z.array(
 export const runConfirmedNativeTokenExtraWorker = async (): Promise<void> => {
   const context = await contextLazy;
   const {
-    config,
     db,
     nativeMethod,
     network,
     nodeProvider,
-    config: { etherscanApiKey, evmAccount: account },
+    config,
   } = context;
 
   const { asset, id: depositMethodId } = nativeMethod;
+  const { etherscanApiKey, evmAccount: account } = config
 
   const logger = createLogger('ethereum:deposit:confirmed-native');
   const graphQLClient = memGetInternalGqlc();
